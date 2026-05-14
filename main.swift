@@ -25,12 +25,26 @@ store.requestFullAccessToReminders { granted, error in
             semaphore.signal()
             return
         }
+        let now = Date()
+        let calender = Calendar.current
 
         for reminder in reminders {
             if reminder.calendar.title != "課題" {
                 continue
             }
-            print("There is a reminder with title: \(reminder.title)")
+            guard let title = reminder.title else {
+                continue
+            }
+            print("There is a reminder with title: \(title)")
+            let priority = reminder.priority
+            print("Priority: \(priority)")
+            reminder.priority = 1
+            do {
+                try store.save(reminder, commit: true)
+                print("Updated priority to 1")
+            } catch {
+                print("Failed to update reminder: \(error)")
+            }
         }
         semaphore.signal()
     }
