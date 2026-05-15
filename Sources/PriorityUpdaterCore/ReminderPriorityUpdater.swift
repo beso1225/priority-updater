@@ -19,6 +19,7 @@ public struct ReminderUpdateSummary: Sendable {
 public enum ReminderPriorityUpdaterError: Error {
     case eventKitUnavailable
     case permissionDenied
+    case commitFailed(updatedCount: Int, failedCount: Int, underlying: Error)
 }
 
 public final class ReminderPriorityUpdater {
@@ -62,8 +63,8 @@ public final class ReminderPriorityUpdater {
                     return
                 }
 
-                let now = Date()
                 let calendar = Calendar.current
+                let nowStartOfDay = calendar.startOfDay(for: Date())
                 var updatedCount = 0
                 var failedSaveCount = 0
 
@@ -75,7 +76,8 @@ public final class ReminderPriorityUpdater {
                         continue
                     }
 
-                    guard let daysUntilDue = calendar.dateComponents([.day], from: now, to: dueDate).day else {
+                    let dueStartOfDay = calendar.startOfDay(for: dueDate)
+                    guard let daysUntilDue = calendar.dateComponents([.day], from: nowStartOfDay, to: dueStartOfDay).day else {
                         continue
                     }
                     let newPriority = Self.priority(daysUntilDue: daysUntilDue)
@@ -95,7 +97,7 @@ public final class ReminderPriorityUpdater {
                     try store.commit()
                     completion(.success(ReminderUpdateSummary(totalReminders: reminders.count, updatedReminders: updatedCount, failedReminders: failedSaveCount)))
                 } catch {
-                    completion(.failure(error))
+                    completion(.failure(ReminderPriorityUpdaterError.commitFailed(updatedCount: updatedCount, failedCount: failedSaveCount, underlying: error)))
                 }
             }
         }
