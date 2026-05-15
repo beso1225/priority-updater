@@ -10,7 +10,7 @@ if #available(macOS 14.0, *) {
     updater.updateReminderPriorities { result in
         switch result {
         case .success(let summary):
-            print("Scanned \(summary.totalReminders) reminders; updated \(summary.updatedReminders).")
+            print("Scanned \(summary.totalReminders) reminders; updated \(summary.updatedReminders); failed \(summary.failedReminders).")
         case .failure(let error):
             print("Failed to update reminders: \(error)")
         }

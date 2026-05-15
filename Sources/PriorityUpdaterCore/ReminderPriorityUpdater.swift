@@ -7,17 +7,18 @@ import EventKit
 public struct ReminderUpdateSummary: Sendable {
     public let totalReminders: Int
     public let updatedReminders: Int
+    public let failedReminders: Int
 
-    public init(totalReminders: Int, updatedReminders: Int) {
+    public init(totalReminders: Int, updatedReminders: Int, failedReminders: Int = 0) {
         self.totalReminders = totalReminders
         self.updatedReminders = updatedReminders
+        self.failedReminders = failedReminders
     }
 }
 
 public enum ReminderPriorityUpdaterError: Error {
     case eventKitUnavailable
     case permissionDenied
-    case partialSaveFailure(failedCount: Int)
 }
 
 public final class ReminderPriorityUpdater {
@@ -57,7 +58,7 @@ public final class ReminderPriorityUpdater {
 
             store.fetchReminders(matching: predicate) { reminders in
                 guard let reminders else {
-                    completion(.success(ReminderUpdateSummary(totalReminders: 0, updatedReminders: 0)))
+                    completion(.success(ReminderUpdateSummary(totalReminders: 0, updatedReminders: 0, failedReminders: 0)))
                     return
                 }
 
@@ -92,11 +93,7 @@ public final class ReminderPriorityUpdater {
 
                 do {
                     try store.commit()
-                    if failedSaveCount > 0 {
-                        completion(.failure(ReminderPriorityUpdaterError.partialSaveFailure(failedCount: failedSaveCount)))
-                    } else {
-                        completion(.success(ReminderUpdateSummary(totalReminders: reminders.count, updatedReminders: updatedCount)))
-                    }
+                    completion(.success(ReminderUpdateSummary(totalReminders: reminders.count, updatedReminders: updatedCount, failedReminders: failedSaveCount)))
                 } catch {
                     completion(.failure(error))
                 }
