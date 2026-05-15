@@ -17,6 +17,7 @@ public struct ReminderUpdateSummary: Sendable {
 public enum ReminderPriorityUpdaterError: Error {
     case eventKitUnavailable
     case permissionDenied
+    case partialSaveFailure(failedCount: Int)
 }
 
 public final class ReminderPriorityUpdater {
@@ -63,6 +64,7 @@ public final class ReminderPriorityUpdater {
                 let now = Date()
                 let calendar = Calendar.current
                 var updatedCount = 0
+                var failedSaveCount = 0
 
                 for reminder in reminders {
                     guard
@@ -72,7 +74,9 @@ public final class ReminderPriorityUpdater {
                         continue
                     }
 
-                    let daysUntilDue = calendar.dateComponents([.day], from: now, to: dueDate).day ?? Int.max
+                    guard let daysUntilDue = calendar.dateComponents([.day], from: now, to: dueDate).day else {
+                        continue
+                    }
                     let newPriority = Self.priority(daysUntilDue: daysUntilDue)
 
                     if reminder.priority != newPriority {
@@ -81,15 +85,18 @@ public final class ReminderPriorityUpdater {
                             try store.save(reminder, commit: false)
                             updatedCount += 1
                         } catch {
-                            completion(.failure(error))
-                            return
+                            failedSaveCount += 1
                         }
                     }
                 }
 
                 do {
                     try store.commit()
-                    completion(.success(ReminderUpdateSummary(totalReminders: reminders.count, updatedReminders: updatedCount)))
+                    if failedSaveCount > 0 {
+                        completion(.failure(ReminderPriorityUpdaterError.partialSaveFailure(failedCount: failedSaveCount)))
+                    } else {
+                        completion(.success(ReminderUpdateSummary(totalReminders: reminders.count, updatedReminders: updatedCount)))
+                    }
                 } catch {
                     completion(.failure(error))
                 }
